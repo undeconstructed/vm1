@@ -6,32 +6,26 @@ import (
 	"strings"
 )
 
-func makeNop() word {
-	return OpNop << 20
+func parseReg(s string) (regist, error) {
+	if strings.HasPrefix(s, "g") {
+		n, err := strconv.Atoi(s[1:])
+		if err != nil {
+			panic(err.Error())
+		}
+		if n < 0 || n > 7 {
+			panic("invalid register #")
+		}
+		return regist(n) + RegG0, nil
+	}
+	panic("invalid register")
 }
 
-func makeHalt() word {
-	return OpHalt << 20
-}
-
-func makeSet(n int16) word {
-	return OpSet<<20 | word(uint16(n))
-}
-
-func makeAdd(n int16) word {
-	return OpAdd<<20 | word(uint16(n))
-}
-
-func makeJmp(n int16) word {
-	return OpJmp<<20 | word(uint16(n))
-}
-
-func makeBr0(n int16) word {
-	return OpBr0<<20 | word(uint16(n))
-}
-
-func makeFoo() word {
-	return OpFoo << 20
+func parseInt16(s string) (int16, error) {
+	i, err := strconv.ParseInt(s, 10, 16)
+	if err != nil {
+		panic(err.Error())
+	}
+	return int16(i), nil
 }
 
 func assemble(src string) ([]word, error) {
@@ -48,31 +42,41 @@ func assemble(src string) ([]word, error) {
 		switch ws[0] {
 		case "nop":
 			i = makeNop()
-		case "halt":
-			i = makeHalt()
+		case "hlt":
+			i = makeHlt()
+		case "put":
+			val, _ := parseReg(ws[1])
+			bas, _ := parseReg(ws[2])
+			at, _ := parseReg(ws[3])
+			i = makePut(val, bas, at)
+		case "get":
+			val, _ := parseReg(ws[1])
+			bas, _ := parseReg(ws[2])
+			at, _ := parseReg(ws[3])
+			i = makeGet(val, bas, at)
 		case "set":
-			n, err := strconv.Atoi(ws[1])
-			if err != nil {
-				return nil, err
-			}
-			i = makeSet(int16(n))
+			r, _ := parseReg(ws[1])
+			n, _ := parseInt16(ws[2])
+			i = makeSet(r, n)
 		case "add":
-			n, err := strconv.Atoi(ws[1])
-			if err != nil {
-				return nil, err
-			}
-			i = makeAdd(int16(n))
+			a, _ := parseReg(ws[1])
+			b, _ := parseReg(ws[2])
+			r, _ := parseReg(ws[3])
+			i = makeAdd(a, b, r)
+		case "mlt":
+			a, _ := parseReg(ws[1])
+			b, _ := parseReg(ws[2])
+			r, _ := parseReg(ws[3])
+			i = makeMlt(a, b, r)
+		case "mov":
+			a, _ := parseReg(ws[1])
+			b, _ := parseReg(ws[2])
+			i = makeMov(a, b)
 		case "jmp":
-			n, err := strconv.Atoi(ws[1])
-			if err != nil {
-				return nil, err
-			}
+			n, _ := parseInt16(ws[1])
 			i = makeJmp(int16(n))
 		case "br0":
-			n, err := strconv.Atoi(ws[1])
-			if err != nil {
-				return nil, err
-			}
+			n, _ := parseInt16(ws[1])
 			i = makeBr0(int16(n))
 		case "foo":
 			i = makeFoo()
