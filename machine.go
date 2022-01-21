@@ -8,23 +8,28 @@ type word uint32
 
 type opcode uint8
 type regist uint8
+type funct3 uint8
 type imm12 int16
 type imm20 int32
 
 type op func(word)
 
 const (
-	OpHlt  opcode = iota
-	OpPut         // reg -> mem
-	OpGet         // mem -> reg
-	OpAdd         // reg, reg -> reg
-	OpMlt         // reg, reg -> reg
-	OpAddi        // reg, n -> reg
-	OpSlti
+	OpHlt opcode = iota
+	OpPut        // reg -> mem
+	OpGet        // mem -> reg
+	OpAdd        // reg, reg -> reg
+	OpMlt        // reg, reg -> reg
+	OpImm
 	OpJmp
 	OpBne
 	OpFoo
 	OpNull
+)
+
+const (
+	Funct3Addi funct3 = iota
+	Funct3Slti
 )
 
 const (
@@ -47,8 +52,7 @@ func newMachine() *machine {
 		vm._get,
 		vm._add,
 		vm._mlt,
-		vm._addi,
-		vm._slti,
+		vm._imm,
 		vm._jmp,
 		vm._bne,
 		vm._foo,
@@ -149,15 +153,23 @@ func (vm *machine) _mlt(i word) {
 	vm.setRegister(rd, n)
 }
 
-func (vm *machine) _addi(i word) {
-	rd, rs, v := readAddi(i)
+func (vm *machine) _imm(i word) {
+	_, f3, rd, rs, imm := decodeIType(i)
+	switch f3 {
+	case Funct3Addi:
+		vm._addi(rd, rs, imm)
+	case Funct3Slti:
+		vm._slti(rd, rs, imm)
+	}
+}
+
+func (vm *machine) _addi(rd, rs regist, v imm12) {
 	fmt.Printf("addi x%d x%d %d\n", rd, rs, v)
 	n := int32(vm.registers[rs]) + int32(v)
 	vm.setRegister(rd, word(n))
 }
 
-func (vm *machine) _slti(i word) {
-	rd, rs, n := readSlti(i)
+func (vm *machine) _slti(rd, rs regist, n imm12) {
 	fmt.Printf("slti x%d x%d %d\n", rd, rs, n)
 	n0 := vm.registers[rs]
 	flag := 0
