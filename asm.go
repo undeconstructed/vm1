@@ -21,6 +21,14 @@ func parseReg(s string) (regist, error) {
 	panic("invalid register")
 }
 
+func parseInt32(s string) (int32, error) {
+	i, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		panic(err.Error())
+	}
+	return int32(i), nil
+}
+
 func parseImm12(s string) (imm12, error) {
 	i, err := strconv.ParseInt(s, 10, 12)
 	if err != nil {
@@ -49,6 +57,9 @@ func assemble(src string) ([]word, error) {
 
 		var i word
 		switch ws[0] {
+		case "i32":
+			val, _ := parseInt32(ws[1])
+			i = word(val)
 		case "nop":
 			i = makeAddi(regist(0), regist(0), imm12(0))
 		case "hlt":
@@ -104,6 +115,16 @@ func assemble(src string) ([]word, error) {
 			rd, _ := parseReg(ws[1])
 			n, _ := parseImm20(ws[2])
 			i = makeLui(rd, n)
+		case "lw":
+			rd, _ := parseReg(ws[1])
+			rs1, _ := parseReg(ws[2])
+			n, _ := parseImm12(ws[3])
+			i = makeLw(rd, rs1, n)
+		case "sw":
+			rs1, _ := parseReg(ws[1])
+			n, _ := parseImm12(ws[2])
+			rs2, _ := parseReg(ws[3])
+			i = makeSw(rs1, n, rs2)
 		case "foo":
 			i = makeFoo()
 		case "#":

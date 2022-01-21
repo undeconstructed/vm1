@@ -242,3 +242,21 @@ func readLui(op word) (rd regist, n imm20) {
 	_, rd, n = decodeUType(op)
 	return rd, n
 }
+
+func makeLw(rd regist, rs1 regist, n imm12) word {
+	return encodeIType(OpLoad, Funct3Lw, rd, rs1, n)
+}
+
+func readLw(op word) (rd regist, rs1 regist, n imm12) {
+	_, _, rd, rs1, n = decodeIType(op)
+	return rd, rs1, n
+}
+
+func makeSw(rs1 regist, n imm12, rs2 regist) word {
+	return encodeSType(OpStore, Funct3Sw, rs1, rs2, n)
+}
+
+// func readSw(op word) (rs1 regist, n imm12, rs2 regist) {
+// 	_, _, rs1, rs2, n = decodeSType(op)
+// 	return rs1, n, rs2
+// }
