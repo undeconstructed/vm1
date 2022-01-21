@@ -152,30 +152,6 @@ func makeHlt() word {
 	return packOp(OpHlt)
 }
 
-func makePut(val, bas, at regist) word {
-	i := packOp(OpPut)
-	i = packReg(i, 8, val)
-	i = packReg(i, 16, bas)
-	i = packReg(i, 24, at)
-	return i
-}
-
-func readPut(op word) (val, bas, at regist) {
-	return unpackReg(op, 8), unpackReg(op, 16), unpackReg(op, 24)
-}
-
-func makeGet(val, bas, at regist) word {
-	i := packOp(OpPut)
-	i = packReg(i, 8, val)
-	i = packReg(i, 16, bas)
-	i = packReg(i, 24, at)
-	return i
-}
-
-func readGet(op word) (val, bas, at regist) {
-	return unpackReg(op, 8), unpackReg(op, 16), unpackReg(op, 24)
-}
-
 func makeAdd(rd, rs1, rs2 regist) word {
 	return encodeRType(OpOp, Funct3Add, Funct7Zeros, rd, rs1, rs2)
 }
@@ -225,10 +201,10 @@ func makeBne(rs1, rs2 regist, n imm12) word {
 	return encodeBType(OpBranch, Funct3Bne, rs1, rs2, n)
 }
 
-func readBne(op word) (rs1, rs2 regist, n imm12) {
-	_, _, rs1, rs2, n = decodeBType(op)
-	return rs1, rs2, n
-}
+// func readBne(op word) (rs1, rs2 regist, n imm12) {
+// 	_, _, rs1, rs2, n = decodeBType(op)
+// 	return rs1, rs2, n
+// }
 
 func makeFoo() word {
 	return packOp(OpFoo)
@@ -247,10 +223,10 @@ func makeLw(rd regist, rs1 regist, n imm12) word {
 	return encodeIType(OpLoad, Funct3Lw, rd, rs1, n)
 }
 
-func readLw(op word) (rd regist, rs1 regist, n imm12) {
-	_, _, rd, rs1, n = decodeIType(op)
-	return rd, rs1, n
-}
+// func readLw(op word) (rd regist, rs1 regist, n imm12) {
+// 	_, _, rd, rs1, n = decodeIType(op)
+// 	return rd, rs1, n
+// }
 
 func makeSw(rs1 regist, n imm12, rs2 regist) word {
 	return encodeSType(OpStore, Funct3Sw, rs1, rs2, n)
@@ -260,3 +236,11 @@ func makeSw(rs1 regist, n imm12, rs2 regist) word {
 // 	_, _, rs1, rs2, n = decodeSType(op)
 // 	return rs1, n, rs2
 // }
+
+func makeEcall() word {
+	return encodeIType(OpSystem, Funct3Zeros, RegG0, RegG0, imm12(Funct12Ecall))
+}
+
+func makeEbreak() word {
+	return encodeIType(OpSystem, Funct3Zeros, RegG0, RegG0, imm12(Funct12Ebreak))
+}

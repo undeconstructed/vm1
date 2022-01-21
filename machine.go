@@ -11,6 +11,7 @@ type regist uint8
 type funct3 uint8
 type funct7 uint8
 type imm12 int16
+type funct12 imm12
 type imm20 int32
 
 type op func(word)
@@ -27,14 +28,15 @@ const (
 	OpJal    opcode = 0b1101111
 	OpStore  opcode = 0b0100011
 	OpLoad   opcode = 0b0000011
-	OpPut    opcode = 123
-	OpGet    opcode = 124
+	OpSystem opcode = 0b1110011
 	OpMlt    opcode = 125
 	OpFoo    opcode = 126
 	OpNull   opcode = 127
 )
 
 const (
+	Funct3Zeros funct3 = 0
+
 	Funct3Addi  funct3 = 0b000
 	Funct3Slti         = 0b010
 	Funct3Sltiu        = 0b011
@@ -78,6 +80,11 @@ const (
 )
 
 const (
+	Funct12Ecall  funct12 = 0b000000000000
+	Funct12Ebreak funct12 = 0b000000000001
+)
+
+const (
 	RegG0   regist = 0
 	RegPC          = 32
 	RegNull        = RegPC + 1
@@ -101,8 +108,7 @@ func newMachine() *machine {
 	vm.ops[OpJal] = vm._jal
 	vm.ops[OpLoad] = vm._load
 	vm.ops[OpStore] = vm._store
-	vm.ops[OpPut] = vm._put
-	vm.ops[OpGet] = vm._get
+	vm.ops[OpSystem] = vm._system
 	vm.ops[OpMlt] = vm._mlt
 	vm.ops[OpFoo] = vm._foo
 	vm.registers = [RegNull]word{}
@@ -182,21 +188,6 @@ func (vm *machine) print() {
 
 func (vm *machine) _hlt(word) {
 	fmt.Println("halt")
-}
-
-func (vm *machine) _put(i word) {
-	val, bas, at := readPut(i)
-	fmt.Printf("put x%d x%d x%d\n", val, bas, at)
-	addr := vm.registers[bas] + vm.registers[at]
-	vm.setMemory(addr, vm.registers[val])
-}
-
-func (vm *machine) _get(i word) {
-	val, bas, at := readPut(i)
-	fmt.Printf("get x%d x%d x%d\n", val, bas, at)
-	addr := vm.registers[bas] + vm.registers[at]
-	n := vm.getMemory(addr)
-	vm.setRegister(val, n)
 }
 
 func (vm *machine) _op(i word) {
@@ -317,6 +308,25 @@ func (vm *machine) _sw(rs1 regist, n imm12, rs2 regist) {
 	addr := vm.registers[rs1] + word(n)
 	val := vm.registers[rs2]
 	vm.setMemory(addr, val)
+}
+
+func (vm *machine) _system(i word) {
+	_, _, _, _, f12 := decodeIType(i)
+	fmt.Printf("opssytem f12=%d\n", f12)
+	switch funct12(f12) {
+	case Funct12Ecall:
+		vm._ecall()
+	case Funct12Ebreak:
+		vm._ebreak()
+	}
+}
+
+func (vm *machine) _ecall() {
+	fmt.Printf("ecall\n")
+}
+
+func (vm *machine) _ebreak() {
+	fmt.Printf("ebreak\n")
 }
 
 func (vm *machine) _foo(word) {

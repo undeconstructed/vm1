@@ -64,16 +64,6 @@ func assemble(src string) ([]word, error) {
 			i = makeAddi(regist(0), regist(0), imm12(0))
 		case "hlt":
 			i = makeHlt()
-		case "put":
-			val, _ := parseReg(ws[1])
-			bas, _ := parseReg(ws[2])
-			at, _ := parseReg(ws[3])
-			i = makePut(val, bas, at)
-		case "get":
-			val, _ := parseReg(ws[1])
-			bas, _ := parseReg(ws[2])
-			at, _ := parseReg(ws[3])
-			i = makeGet(val, bas, at)
 		case "set":
 			rd, _ := parseReg(ws[1])
 			n, _ := parseImm12(ws[2])
@@ -125,6 +115,10 @@ func assemble(src string) ([]word, error) {
 			n, _ := parseImm12(ws[2])
 			rs2, _ := parseReg(ws[3])
 			i = makeSw(rs1, n, rs2)
+		case "ecall":
+			i = makeEcall()
+		case "ebreak":
+			i = makeEbreak()
 		case "foo":
 			i = makeFoo()
 		case "#":

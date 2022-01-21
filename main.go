@@ -9,7 +9,8 @@ const src1 = `
 # test
 jal x0 4 # jump next word
 i32 1000 # data at word 1
-lw x1 x0 4 # load 0+4
+ecall
+lw x1 x0 804 # load 201words*4bytes
 
 # setup for loop
 set x1 10
@@ -45,7 +46,8 @@ func main() {
 
 	vm := newMachine()
 
-	vm.load(0, prog)
+	vm.load(200, prog)
+	vm.registers[RegPC] = 200 * WordLen
 
 	vm.print()
 	vm.run(100)
