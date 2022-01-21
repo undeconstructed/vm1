@@ -2,21 +2,25 @@ package main
 
 import "fmt"
 
+/*
+x1 * x2 -> x8 = x1 loops of adding x2 to x8
+*/
 const src1 = `
-set g2 5
-set g1 -1
-set g0 5
-br0 3
-add g2 g3 g3
-add g0 g1 g0
-jmp -4
-set g0 100
-set g1 0
-put g3 g0 g1
-set g2 5
-mlt g2 g2 g3
-set g1 +1
-put g3 g0 g1
+set x1 10
+set x2 5
+set x8 0
+slti x3 x1 1
+bne x3 x0 3
+addi x1 x1 -1
+add x8 x8 x2
+jmp -5
+set x7 100
+put x8 x0 x7
+set x1 10
+set x2 5
+mlt x8 x1 x2
+set x7 101
+put x8 x0 x7
 foo
 hlt
 `

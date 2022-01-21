@@ -7,25 +7,26 @@ import (
 )
 
 func parseReg(s string) (regist, error) {
-	if strings.HasPrefix(s, "g") {
+	if strings.HasPrefix(s, "x") {
 		n, err := strconv.Atoi(s[1:])
 		if err != nil {
 			panic(err.Error())
 		}
-		if n < 0 || n > 7 {
+		n1 := regist(n)
+		if n1 < 0 || n1 >= RegPC {
 			panic("invalid register #")
 		}
-		return regist(n) + RegG0, nil
+		return n1, nil
 	}
 	panic("invalid register")
 }
 
-func parseInt16(s string) (int16, error) {
-	i, err := strconv.ParseInt(s, 10, 16)
+func parseImm12(s string) (imm12, error) {
+	i, err := strconv.ParseInt(s, 10, 12)
 	if err != nil {
 		panic(err.Error())
 	}
-	return int16(i), nil
+	return imm12(i), nil
 }
 
 func assemble(src string) ([]word, error) {
@@ -41,7 +42,7 @@ func assemble(src string) ([]word, error) {
 		var i word
 		switch ws[0] {
 		case "nop":
-			i = makeNop()
+			i = makeAddi(regist(0), regist(0), imm12(0))
 		case "hlt":
 			i = makeHlt()
 		case "put":
@@ -55,29 +56,41 @@ func assemble(src string) ([]word, error) {
 			at, _ := parseReg(ws[3])
 			i = makeGet(val, bas, at)
 		case "set":
-			r, _ := parseReg(ws[1])
-			n, _ := parseInt16(ws[2])
-			i = makeSet(r, n)
+			rd, _ := parseReg(ws[1])
+			n, _ := parseImm12(ws[2])
+			i = makeAddi(rd, RegG0, n)
 		case "add":
-			a, _ := parseReg(ws[1])
-			b, _ := parseReg(ws[2])
-			r, _ := parseReg(ws[3])
-			i = makeAdd(a, b, r)
+			rd, _ := parseReg(ws[1])
+			rs1, _ := parseReg(ws[2])
+			rs2, _ := parseReg(ws[3])
+			i = makeAdd(rd, rs1, rs2)
 		case "mlt":
-			a, _ := parseReg(ws[1])
-			b, _ := parseReg(ws[2])
-			r, _ := parseReg(ws[3])
-			i = makeMlt(a, b, r)
+			rd, _ := parseReg(ws[1])
+			rs1, _ := parseReg(ws[2])
+			rs2, _ := parseReg(ws[3])
+			i = makeMlt(rd, rs1, rs2)
 		case "mov":
-			a, _ := parseReg(ws[1])
-			b, _ := parseReg(ws[2])
-			i = makeMov(a, b)
+			rd, _ := parseReg(ws[1])
+			rs, _ := parseReg(ws[2])
+			i = makeAddi(rd, rs, imm12(0))
+		case "addi":
+			rd, _ := parseReg(ws[1])
+			rs, _ := parseReg(ws[2])
+			n, _ := parseImm12(ws[3])
+			i = makeAddi(rd, rs, n)
+		case "slti":
+			rd, _ := parseReg(ws[1])
+			rs, _ := parseReg(ws[2])
+			n, _ := parseImm12(ws[3])
+			i = makeSlti(rd, rs, n)
 		case "jmp":
-			n, _ := parseInt16(ws[1])
-			i = makeJmp(int16(n))
-		case "br0":
-			n, _ := parseInt16(ws[1])
-			i = makeBr0(int16(n))
+			n, _ := parseImm12(ws[1])
+			i = makeJmp(n)
+		case "bne":
+			rs1, _ := parseReg(ws[1])
+			rs2, _ := parseReg(ws[2])
+			n, _ := parseImm12(ws[3])
+			i = makeBne(rs1, rs2, n)
 		case "foo":
 			i = makeFoo()
 		default:

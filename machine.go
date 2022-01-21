@@ -8,36 +8,28 @@ type word uint32
 
 type opcode uint8
 type regist uint8
+type imm12 int16
 
 type op func(word)
 
 const (
-	OpNop opcode = iota
-	OpHlt
-	OpPut // reg -> mem
-	OpGet // mem -> reg
-	OpSet // n -> reg
-	OpAdd // reg, reg -> reg
-	OpMlt // reg, reg -> reg
-	OpMov // reg -> reg
+	OpHlt  opcode = iota
+	OpPut         // reg -> mem
+	OpGet         // mem -> reg
+	OpAdd         // reg, reg -> reg
+	OpMlt         // reg, reg -> reg
+	OpAddi        // reg, n -> reg
+	OpSlti
 	OpJmp
-	OpBr0
+	OpBne
 	OpFoo
 	OpNull
 )
 
 const (
-	RegPC regist = iota
-	RegStat
-	RegG0
-	RegG1
-	RegG2
-	RegG3
-	RegG4
-	RegG5
-	RegG6
-	RegG7
-	RegNull
+	RegG0   regist = 0
+	RegPC          = 32
+	RegNull        = RegPC + 1
 )
 
 const (
@@ -54,16 +46,15 @@ type machine struct {
 func newMachine() *machine {
 	vm := &machine{}
 	vm.ops = [OpNull]op{
-		vm._nop,
 		vm._hlt,
 		vm._put,
 		vm._get,
-		vm._set,
 		vm._add,
 		vm._mlt,
-		vm._mov,
+		vm._addi,
+		vm._slti,
 		vm._jmp,
-		vm._br0,
+		vm._bne,
 		vm._foo,
 	}
 	vm.registers = [RegNull]word{}
@@ -89,16 +80,12 @@ func (vm *machine) setMemory(a word, n word) {
 }
 
 func (vm *machine) setRegister(r regist, n word) {
-	vm.registers[r] = n
-	vm.setFlags(n)
-}
-
-func (vm *machine) setFlags(n word) {
-	stat := StatEmpty
-	if n == 0 {
-		stat |= StatZero
+	if r == RegG0 {
+		// always must be zero
+		return
 	}
-	vm.registers[RegStat] = stat
+	vm.registers[r] = n
+	fmt.Printf("R: %v\n", vm.registers)
 }
 
 func (vm *machine) step() bool {
@@ -133,54 +120,55 @@ func (vm *machine) print() {
 	fmt.Printf("M: %v\n", vm.memory)
 }
 
-func (vm *machine) _nop(word) {
-	fmt.Println("nop")
-}
-
 func (vm *machine) _hlt(word) {
 	fmt.Println("halt")
 }
 
 func (vm *machine) _put(i word) {
 	val, bas, at := readPut(i)
-	fmt.Printf("put %d %d %d\n", val, bas, at)
+	fmt.Printf("put x%d x%d x%d\n", val, bas, at)
 	addr := vm.registers[bas] + vm.registers[at]
 	vm.setMemory(addr, vm.registers[val])
 }
 
 func (vm *machine) _get(i word) {
 	val, bas, at := readPut(i)
-	fmt.Printf("get %d %d %d\n", val, bas, at)
+	fmt.Printf("get x%d x%d x%d\n", val, bas, at)
 	addr := vm.registers[bas] + vm.registers[at]
 	n := vm.memory[addr]
 	vm.setRegister(val, n)
 }
 
-func (vm *machine) _set(i word) {
-	r, n := readSet(i)
-	fmt.Printf("set %d %d\n", r, n)
-	vm.setRegister(r, word(n))
-}
-
 func (vm *machine) _add(i word) {
-	a, b, res := readAdd(i)
-	fmt.Printf("add %d %d %d\n", a, b, res)
-	n := vm.registers[a] + vm.registers[b]
-	vm.setRegister(res, n)
+	rd, rs1, rs2 := readAdd(i)
+	fmt.Printf("add x%d x%d x%d\n", rd, rs1, rs2)
+	n := vm.registers[rs1] + vm.registers[rs2]
+	vm.setRegister(rd, n)
 }
 
 func (vm *machine) _mlt(i word) {
-	a, b, res := readAdd(i)
-	fmt.Printf("mlt %d %d %d\n", a, b, res)
-	n := vm.registers[b] * vm.registers[b]
-	vm.setRegister(res, n)
+	rd, rs1, rs2 := readMlt(i)
+	fmt.Printf("mlt x%d x%d x%d\n", rd, rs1, rs2)
+	n := vm.registers[rs1] * vm.registers[rs2]
+	vm.setRegister(rd, n)
 }
 
-func (vm *machine) _mov(i word) {
-	a, b := readMov(i)
-	fmt.Printf("mlt %d %d\n", a, b)
-	n := vm.registers[a]
-	vm.setRegister(b, n)
+func (vm *machine) _addi(i word) {
+	rd, rs, v := readAddi(i)
+	fmt.Printf("addi x%d x%d %d\n", rd, rs, v)
+	n := int32(vm.registers[rs]) + int32(v)
+	vm.setRegister(rd, word(n))
+}
+
+func (vm *machine) _slti(i word) {
+	rd, rs, n := readSlti(i)
+	fmt.Printf("slti x%d x%d %d\n", rd, rs, n)
+	n0 := vm.registers[rs]
+	flag := 0
+	if int32(n0) < int32(n) {
+		flag = 1
+	}
+	vm.setRegister(rd, word(flag))
 }
 
 func (vm *machine) _jmp(i word) {
@@ -191,11 +179,10 @@ func (vm *machine) _jmp(i word) {
 	vm.registers[RegPC] = word(npc)
 }
 
-func (vm *machine) _br0(i word) {
-	n := readBr0(i)
-	fmt.Printf("br0 %d\n", n)
-	stat := vm.registers[RegStat]
-	if stat&StatZero == StatZero {
+func (vm *machine) _bne(i word) {
+	rs1, rs2, n := readBne(i)
+	fmt.Printf("bne x%d x%d %d\n", rs1, rs2, n)
+	if vm.registers[rs1] != vm.registers[rs2] {
 		pc := int32(vm.registers[RegPC])
 		npc := pc + int32(n)
 		vm.registers[RegPC] = word(npc)
