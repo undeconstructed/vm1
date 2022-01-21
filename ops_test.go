@@ -2,6 +2,16 @@ package main
 
 import "testing"
 
+func TestOpCodePacking(t *testing.T) {
+	in := OpBne
+	packed := packOp(in)
+	t.Logf("packed: %b", packed)
+	out := unpackOp(packed)
+	if in != out {
+		t.Errorf("%d != %d", in, out)
+	}
+}
+
 func TestRegPacking(t *testing.T) {
 	in := regist(5)
 	packed := packReg(0, 10, in)
@@ -14,9 +24,19 @@ func TestRegPacking(t *testing.T) {
 
 func TestImm12Packing(t *testing.T) {
 	in := imm12(-1)
-	packed := packImm12(0, 10, in)
+	packed := packImm12(0, 16, in)
 	t.Logf("packed: %b", packed)
-	out := unpackImm12(packed, 10)
+	out := unpackImm12(packed, 16)
+	if in != out {
+		t.Errorf("%d != %d", in, out)
+	}
+}
+
+func TestImm20Packing(t *testing.T) {
+	in := imm20(-1)
+	packed := packImm20(0, 7, in)
+	t.Logf("packed: %b", packed)
+	out := unpackImm20(packed, 7)
 	if in != out {
 		t.Errorf("%d != %d", in, out)
 	}

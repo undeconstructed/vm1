@@ -93,6 +93,12 @@ func assemble(src string) ([]word, error) {
 			i = makeBne(rs1, rs2, n)
 		case "foo":
 			i = makeFoo()
+		case "#":
+			// comment
+			continue
+		case "":
+			// blank line
+			continue
 		default:
 			return nil, errors.New("unknown op: " + ws[0])
 		}

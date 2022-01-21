@@ -3,84 +3,98 @@ package main
 // constants for instruction packing
 const (
 	PackWordLen   = 32
-	PackOpLen     = 6
-	PackOpMask    = 0b111111
+	PackOpLen     = 7
+	PackOpMask    = 0b1111111
 	PackOpShift   = PackWordLen - PackOpLen
 	PackRegLen    = 5
 	PackRegMask   = 0b11111
 	PackImm12Len  = 12
 	PackImm12Mask = 0b111111111111
+	PackImm20Len  = 20
+	PackImm20Mask = 0b11111111111111111111
 )
 
 func packOp(op opcode) word {
 	if op >= OpNull {
 		panic("illegal opcode")
 	}
-	return word(op) << PackOpShift
+	return word(op)
 }
 
 func unpackOp(from word) opcode {
-	return opcode(from>>PackOpShift) & PackOpMask
+	return opcode(from) & PackOpMask
 }
 
 func packReg(into word, at uint, reg regist) word {
 	if reg >= RegNull {
 		panic("illegal register")
 	}
-	return into | word(reg)<<((PackWordLen-at)-PackRegLen)
+	return into | (word(reg&PackRegMask) << at)
 }
 
 func unpackReg(from word, at uint) regist {
-	return regist(from>>((PackWordLen-at)-PackRegLen)) & PackRegMask
+	return regist((from >> at) & PackRegMask)
 }
 
 func packImm12(into word, at uint, n imm12) word {
-	nw := word(uint16(n)) & PackImm12Mask
-	return into | (nw << ((PackWordLen - at) - PackImm12Len))
+	return into | (word(n&PackImm12Mask) << at)
 }
 
 func unpackImm12(from word, at uint) imm12 {
-	ui := (from >> ((PackWordLen - at) - PackImm12Len)) & PackImm12Mask
-	if ui>>11 == 1 {
-		ui = ui | (0b1111 << 12)
+	ui := (from >> at) & PackImm12Mask
+	if ui>>(PackImm12Len-1) == 1 {
+		ui = ui | (0b1111 << PackImm12Len)
 	}
 	return imm12(ui)
 }
 
+func packImm20(into word, at uint, n imm20) word {
+	return into | (word(n&PackImm20Mask) << at)
+}
+
+func unpackImm20(from word, at uint) imm20 {
+	ui := (from >> at) & PackImm20Mask
+	if ui>>(PackImm20Len-1) == 1 {
+		ui = ui | (0b111111111111 << PackImm20Len)
+	}
+	return imm20(ui)
+}
+
 func encodeRType(opc opcode, rd, rs1, rs2 regist) word {
 	i := packOp(opc)
-	i = packReg(i, 6, rd)
-	i = packReg(i, 11, rs1)
-	i = packReg(i, 16, rs2)
+	i = packReg(i, 7, rd)
+	i = packReg(i, 15, rs1)
+	i = packReg(i, 20, rs2)
 	return i
 }
 
 func decodeRType(op word) (opc opcode, rd, rs1, rs2 regist) {
-	return unpackOp(op), unpackReg(op, 6), unpackReg(op, 11), unpackReg(op, 16)
+	return unpackOp(op), unpackReg(op, 7), unpackReg(op, 15), unpackReg(op, 20)
 }
 
 func encodeIType(opc opcode, rd, rs1 regist, n imm12) word {
 	i := packOp(opc)
-	i = packReg(i, 6, rd)
-	i = packReg(i, 11, rs1)
-	i = packImm12(i, 16, n)
+	i = packReg(i, 7, rd)
+	i = packReg(i, 15, rs1)
+	i = packImm12(i, 20, n)
 	return i
 }
 
 func decodeIType(op word) (opc opcode, rd, rs1 regist, n imm12) {
-	return unpackOp(op), unpackReg(op, 6), unpackReg(op, 11), unpackImm12(op, 16)
+	return unpackOp(op), unpackReg(op, 7), unpackReg(op, 15), unpackImm12(op, 20)
 }
 
 func encodeSType(opc opcode, rs1, rs2 regist, n imm12) word {
+	// TODO - spec
 	i := packOp(opc)
-	i = packReg(i, 6, rs1)
-	i = packReg(i, 11, rs2)
-	i = packImm12(i, 16, n)
+	i = packReg(i, 7, rs1)
+	i = packReg(i, 12, rs2)
+	i = packImm12(i, 17, n)
 	return i
 }
 
 func decodeSType(op word) (opc opcode, rs1, rs2 regist, n imm12) {
-	return unpackOp(op), unpackReg(op, 6), unpackReg(op, 11), unpackImm12(op, 16)
+	return unpackOp(op), unpackReg(op, 7), unpackReg(op, 12), unpackImm12(op, 17)
 }
 
 func encodeBType(opc opcode, rs1, rs2 regist, n imm12) word {
@@ -89,6 +103,17 @@ func encodeBType(opc opcode, rs1, rs2 regist, n imm12) word {
 
 func decodeBType(op word) (opc opcode, rs1, rs2 regist, n imm12) {
 	return decodeSType(op)
+}
+
+func encodeUType(opc opcode, rd regist, n imm20) word {
+	i := packOp(opc)
+	i = packReg(i, 7, rd)
+	i = packImm20(i, 12, n)
+	return i
+}
+
+func decodeUType(op word) (opc opcode, rd regist, n imm20) {
+	return unpackOp(op), unpackReg(op, 7), unpackImm20(op, 12)
 }
 
 func makeHlt() word {

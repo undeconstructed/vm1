@@ -9,6 +9,7 @@ type word uint32
 type opcode uint8
 type regist uint8
 type imm12 int16
+type imm20 int32
 
 type op func(word)
 
@@ -30,11 +31,6 @@ const (
 	RegG0   regist = 0
 	RegPC          = 32
 	RegNull        = RegPC + 1
-)
-
-const (
-	StatEmpty word = 0
-	StatZero       = 1 << 0
 )
 
 type machine struct {
