@@ -29,6 +29,14 @@ func parseImm12(s string) (imm12, error) {
 	return imm12(i), nil
 }
 
+func parseImm20(s string) (imm20, error) {
+	i, err := strconv.ParseInt(s, 10, 20)
+	if err != nil {
+		panic(err.Error())
+	}
+	return imm20(i), nil
+}
+
 func assemble(src string) ([]word, error) {
 	r := strings.Split(src, "\n")
 	out := make([]word, 0, len(r))
@@ -83,14 +91,19 @@ func assemble(src string) ([]word, error) {
 			rs, _ := parseReg(ws[2])
 			n, _ := parseImm12(ws[3])
 			i = makeSlti(rd, rs, n)
-		case "jmp":
-			n, _ := parseImm12(ws[1])
-			i = makeJmp(n)
+		case "jal":
+			rd, _ := parseReg(ws[1])
+			n, _ := parseImm20(ws[2])
+			i = makeJal(rd, n)
 		case "bne":
 			rs1, _ := parseReg(ws[1])
 			rs2, _ := parseReg(ws[2])
 			n, _ := parseImm12(ws[3])
 			i = makeBne(rs1, rs2, n)
+		case "lui":
+			rd, _ := parseReg(ws[1])
+			n, _ := parseImm20(ws[2])
+			i = makeLui(rd, n)
 		case "foo":
 			i = makeFoo()
 		case "#":

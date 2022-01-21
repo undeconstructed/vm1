@@ -6,6 +6,9 @@ import "fmt"
 x1 * x2 -> x8 = x1 loops of adding x2 to x8
 */
 const src1 = `
+# test
+lui x1 1
+
 # setup for loop
 set x1 10
 set x2 5
@@ -14,7 +17,7 @@ slti x3 x1 1
 bne x3 x0 3
 addi x1 x1 -1
 add x8 x8 x2
-jmp -5
+jal x0 -5
 set x7 100
 put x8 x0 x7
 

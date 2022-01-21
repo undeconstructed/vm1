@@ -9,6 +9,7 @@ type word uint32
 type opcode uint8
 type regist uint8
 type funct3 uint8
+type funct7 uint8
 type imm12 int16
 type imm20 int32
 
@@ -18,18 +19,54 @@ const (
 	OpHlt opcode = iota
 	OpPut        // reg -> mem
 	OpGet        // mem -> reg
-	OpAdd        // reg, reg -> reg
 	OpMlt        // reg, reg -> reg
 	OpImm
-	OpJmp
-	OpBne
+	OpBranch
+	OpLui
+	// OpAuipc
+	OpOp
+	OpJal
 	OpFoo
 	OpNull
 )
 
 const (
-	Funct3Addi funct3 = iota
-	Funct3Slti
+	Funct3Addi  funct3 = 0
+	Funct3Slti         = 1
+	Funct3Sltiu        = 2
+
+	Funct3Andi = 0
+	Funct3Ori  = 1
+	Funct3Xori = 2
+
+	Funct3Slli = 0
+	Funct3Srli = 1
+	Funct3Srai = 2
+
+	Funct3Add  = 0
+	Funct3Slt  = 1
+	Funct3Sltu = 2
+
+	Funct3And = 0
+	Funct3Or  = 1
+	Funct3Xor = 2
+
+	Funct3Sll = 0
+	Funct3Srl = 1
+
+	Funct3Sub = 0
+	Funct3Sra = 1
+
+	Funct3Beq  = 0
+	Funct3Bne  = 1
+	Funct3Blt  = 2
+	Funct3Bltu = 3
+	Funct3Bge  = 4
+	Funct3Bgeu = 5
+)
+
+const (
+	Funct7Zeros funct7 = 0
 )
 
 const (
@@ -50,11 +87,12 @@ func newMachine() *machine {
 		vm._hlt,
 		vm._put,
 		vm._get,
-		vm._add,
 		vm._mlt,
 		vm._imm,
-		vm._jmp,
-		vm._bne,
+		vm._branch,
+		vm._lui,
+		vm._op,
+		vm._jal,
 		vm._foo,
 	}
 	vm.registers = [RegNull]word{}
@@ -139,8 +177,19 @@ func (vm *machine) _get(i word) {
 	vm.setRegister(val, n)
 }
 
-func (vm *machine) _add(i word) {
-	rd, rs1, rs2 := readAdd(i)
+func (vm *machine) _op(i word) {
+	_, f3, f7, rd, rs1, rs2 := decodeRType(i)
+	fmt.Printf("opop f3=%d f7=%d\n", f3, f7)
+	switch f7 {
+	case Funct7Zeros:
+		switch f3 {
+		case Funct3Add:
+			vm._add(rd, rs1, rs2)
+		}
+	}
+}
+
+func (vm *machine) _add(rd, rs1, rs2 regist) {
 	fmt.Printf("add x%d x%d x%d\n", rd, rs1, rs2)
 	n := vm.registers[rs1] + vm.registers[rs2]
 	vm.setRegister(rd, n)
@@ -155,6 +204,7 @@ func (vm *machine) _mlt(i word) {
 
 func (vm *machine) _imm(i word) {
 	_, f3, rd, rs, imm := decodeIType(i)
+	fmt.Printf("opimm f3=%d\n", f3)
 	switch f3 {
 	case Funct3Addi:
 		vm._addi(rd, rs, imm)
@@ -179,22 +229,40 @@ func (vm *machine) _slti(rd, rs regist, n imm12) {
 	vm.setRegister(rd, word(flag))
 }
 
-func (vm *machine) _jmp(i word) {
-	n := readJmp(i)
-	fmt.Printf("jmp %d\n", n)
+func (vm *machine) _jal(i word) {
+	// TODO - program counter should be bytes not words
+	rd, n := readJal(i)
+	fmt.Printf("jal x%d %d\n", rd, n)
 	pc := int32(vm.registers[RegPC])
-	npc := pc + int32(n)
-	vm.registers[RegPC] = word(npc)
+	pc1 := pc + 1
+	pc2 := pc + int32(n)
+	vm.registers[RegPC] = word(pc2)
+	vm.setRegister(rd, word(pc1))
 }
 
-func (vm *machine) _bne(i word) {
-	rs1, rs2, n := readBne(i)
+func (vm *machine) _branch(i word) {
+	_, f3, rs1, rs2, n := decodeBType(i)
+	fmt.Printf("opbranch f3=%d\n", f3)
+	switch f3 {
+	case Funct3Bne:
+		vm._bne(rs1, rs2, n)
+	}
+}
+
+func (vm *machine) _bne(rs1, rs2 regist, n imm12) {
 	fmt.Printf("bne x%d x%d %d\n", rs1, rs2, n)
 	if vm.registers[rs1] != vm.registers[rs2] {
 		pc := int32(vm.registers[RegPC])
 		npc := pc + int32(n)
 		vm.registers[RegPC] = word(npc)
 	}
+}
+
+func (vm *machine) _lui(i word) {
+	rd, n := readLui(i)
+	fmt.Printf("lui x%d %d\n", rd, n)
+	n1 := word(n) << 12
+	vm.setRegister(rd, n1)
 }
 
 func (vm *machine) _foo(word) {

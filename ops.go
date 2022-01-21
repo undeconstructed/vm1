@@ -9,6 +9,7 @@ const (
 	PackRegLen    = 5
 	PackRegMask   = 0b11111
 	PackF3Mask    = 0b111
+	PackF7Mask    = 0b1111111
 	PackImm12Len  = 12
 	PackImm12Mask = 0b111111111111
 	PackImm20Len  = 20
@@ -45,6 +46,14 @@ func unpackF3(from word, at uint) funct3 {
 	return funct3((from >> at) & PackF3Mask)
 }
 
+func packF7(into word, at uint, f7 funct7) word {
+	return into | (word(f7&PackF7Mask) << at)
+}
+
+func unpackF7(from word, at uint) funct7 {
+	return funct7((from >> at) & PackF7Mask)
+}
+
 func packImm12(into word, at uint, n imm12) word {
 	return into | (word(n&PackImm12Mask) << at)
 }
@@ -69,17 +78,18 @@ func unpackImm20(from word, at uint) imm20 {
 	return imm20(ui)
 }
 
-func encodeRType(opc opcode, f3 funct3, rd, rs1, rs2 regist) word {
+func encodeRType(opc opcode, f3 funct3, f7 funct7, rd, rs1, rs2 regist) word {
 	i := packOp(opc)
 	i = packReg(i, 7, rd)
 	i = packF3(i, 12, f3)
 	i = packReg(i, 15, rs1)
 	i = packReg(i, 20, rs2)
+	i = packF7(i, 25, f7)
 	return i
 }
 
-func decodeRType(op word) (opc opcode, f3 funct3, rd, rs1, rs2 regist) {
-	return unpackOp(op), unpackF3(op, 12), unpackReg(op, 7), unpackReg(op, 15), unpackReg(op, 20)
+func decodeRType(op word) (opc opcode, f3 funct3, f7 funct7, rd, rs1, rs2 regist) {
+	return unpackOp(op), unpackF3(op, 12), unpackF7(op, 25), unpackReg(op, 7), unpackReg(op, 15), unpackReg(op, 20)
 }
 
 func encodeIType(opc opcode, f3 funct3, rd, rs1 regist, n imm12) word {
@@ -110,6 +120,7 @@ func decodeSType(op word) (opc opcode, f3 funct3, rs1, rs2 regist, n imm12) {
 }
 
 func encodeBType(opc opcode, f3 funct3, rs1, rs2 regist, n imm12) word {
+	// TODO - spec
 	return encodeSType(opc, f3, rs1, rs2, n)
 }
 
@@ -126,6 +137,15 @@ func encodeUType(opc opcode, rd regist, n imm20) word {
 
 func decodeUType(op word) (opc opcode, rd regist, n imm20) {
 	return unpackOp(op), unpackReg(op, 7), unpackImm20(op, 12)
+}
+
+func encodeJType(opc opcode, rd regist, n imm20) word {
+	// TODO - spec
+	return encodeUType(opc, rd, n)
+}
+
+func decodeJType(op word) (opc opcode, rd regist, n imm20) {
+	return decodeUType(op)
 }
 
 func makeHlt() word {
@@ -157,20 +177,20 @@ func readGet(op word) (val, bas, at regist) {
 }
 
 func makeAdd(rd, rs1, rs2 regist) word {
-	return encodeRType(OpAdd, 0, rd, rs1, rs2)
+	return encodeRType(OpOp, Funct3Add, Funct7Zeros, rd, rs1, rs2)
 }
 
 func readAdd(op word) (rd, rs1, rs2 regist) {
-	_, _, rd, rs1, rs2 = decodeRType(op)
+	_, _, _, rd, rs1, rs2 = decodeRType(op)
 	return rd, rs1, rs2
 }
 
 func makeMlt(rd, rs1, rs2 regist) word {
-	return encodeRType(OpMlt, 0, rd, rs1, rs2)
+	return encodeRType(OpMlt, 0, 0, rd, rs1, rs2)
 }
 
 func readMlt(op word) (rd, rs1, rs2 regist) {
-	_, _, rd, rs1, rs2 = decodeRType(op)
+	_, _, _, rd, rs1, rs2 = decodeRType(op)
 	return rd, rs1, rs2
 }
 
@@ -178,32 +198,31 @@ func makeAddi(rd, rs1 regist, n imm12) word {
 	return encodeIType(OpImm, Funct3Addi, rd, rs1, n)
 }
 
-func readAddi(op word) (rd, rs regist, n imm12) {
-	_, _, rd, rs, n = decodeIType(op)
-	return rd, rs, n
-}
+// func readAddi(op word) (rd, rs regist, n imm12) {
+// 	_, _, rd, rs, n = decodeIType(op)
+// 	return rd, rs, n
+// }
 
 func makeSlti(rd, rs1 regist, n imm12) word {
 	return encodeIType(OpImm, Funct3Slti, rd, rs1, n)
 }
 
-func readSlti(op word) (rd, rs regist, n imm12) {
-	_, _, rd, rs, n = decodeIType(op)
-	return rd, rs, n
+// func readSlti(op word) (rd, rs regist, n imm12) {
+// 	_, _, rd, rs, n = decodeIType(op)
+// 	return rd, rs, n
+// }
+
+func makeJal(rd regist, n imm20) word {
+	return encodeJType(OpJal, rd, n)
 }
 
-func makeJmp(n imm12) word {
-	i := packOp(OpJmp)
-	i = packImm12(i, 8, n)
-	return i
-}
-
-func readJmp(op word) (n imm12) {
-	return unpackImm12(op, 8)
+func readJal(op word) (rd regist, n imm20) {
+	_, rd, n = decodeJType(op)
+	return rd, n
 }
 
 func makeBne(rs1, rs2 regist, n imm12) word {
-	return encodeBType(OpBne, 0, rs1, rs2, n)
+	return encodeBType(OpBranch, Funct3Bne, rs1, rs2, n)
 }
 
 func readBne(op word) (rs1, rs2 regist, n imm12) {
@@ -213,4 +232,13 @@ func readBne(op word) (rs1, rs2 regist, n imm12) {
 
 func makeFoo() word {
 	return packOp(OpFoo)
+}
+
+func makeLui(rd regist, n imm20) word {
+	return encodeUType(OpLui, rd, n)
+}
+
+func readLui(op word) (rd regist, n imm20) {
+	_, rd, n = decodeUType(op)
+	return rd, n
 }

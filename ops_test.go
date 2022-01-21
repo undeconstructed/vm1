@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestOpCodePacking(t *testing.T) {
-	in := OpBne
+	in := OpLui
 	packed := packOp(in)
 	t.Logf("packed: %b", packed)
 	out := unpackOp(packed)
