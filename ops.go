@@ -3,25 +3,33 @@ package main
 // constants for instruction packing
 const (
 	PackWordLen = 32
-	PackOpLen   = 8
+	PackOpLen   = 6
+	PackOpMask  = 0b111111
 	PackOpShift = PackWordLen - PackOpLen
-	PackRegLen  = 8
+	PackRegLen  = 5
+	PackRegMask = 0b11111
 )
 
 func packOp(op opcode) word {
+	if op >= OpNull {
+		panic("illegal opcode")
+	}
 	return word(op) << PackOpShift
 }
 
 func unpackOp(from word) opcode {
-	return opcode(from >> PackOpShift)
+	return opcode(from>>PackOpShift) & PackOpMask
 }
 
 func packReg(into word, at uint, reg regist) word {
+	if reg >= RegNull {
+		panic("illegal register")
+	}
 	return into | word(reg)<<(PackWordLen-at-PackRegLen)
 }
 
 func unpackReg(from word, at uint) regist {
-	return regist(from >> (PackWordLen - at - PackRegLen))
+	return regist(from>>(PackWordLen-at-PackRegLen)) & PackRegMask
 }
 
 func packInt16(into word, at uint, n int16) word {
